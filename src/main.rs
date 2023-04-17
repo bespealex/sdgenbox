@@ -1,4 +1,4 @@
-use crate::utils::extract_metadata_from_image;
+use crate::{errors::MapErrToInternal, utils::extract_metadata_from_image};
 use actix_multipart::form::{tempfile::TempFile, MultipartForm};
 use actix_web::{
     error::InternalError,
@@ -7,6 +7,7 @@ use actix_web::{
     post, App, HttpResponse, HttpServer, Responder,
 };
 
+mod errors;
 mod models;
 mod utils;
 
@@ -37,8 +38,13 @@ struct UploadForm {
 async fn upload_post(
     MultipartForm(form): MultipartForm<UploadForm>,
 ) -> actix_web::Result<HttpResponse> {
-    let image = extract_metadata_from_image(form.file.file.path().to_str().unwrap())
-        .map_err(|e| InternalError::new(e, StatusCode::INTERNAL_SERVER_ERROR))?;
+    let image =
+        extract_metadata_from_image(form.file.file.path().to_str().ok_or(InternalError::new(
+            "file path cannot be translated to &str",
+            StatusCode::INTERNAL_SERVER_ERROR,
+        ))?)
+        .map_err_to_internal()?;
+
     let body = match image {
         None => "No info".to_string(),
         Some(image) => format!("<pre>Parameters: \n{:#?}</pre>", image),

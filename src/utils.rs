@@ -36,13 +36,13 @@ fn parse_raw(raw: &str) -> Option<ImageParameters> {
         Some(ImageParameters {
             prompt: captures.name("prompt")?.as_str().to_owned(),
             negative_prompt: captures.name("negative_prompt")?.as_str().to_owned(),
-            steps: captures.name("steps")?.as_str().parse::<u64>().unwrap(),
+            steps: captures.name("steps")?.as_str().parse::<u64>().ok()?,
             sampler: captures.name("sampler")?.as_str().to_owned(),
             cfg_scale: captures.name("cfg_scale")?.as_str().parse::<f64>().ok()?,
             seed: captures.name("seed")?.as_str().parse::<i64>().ok()?,
             size: parse_size(captures.name("size")?.as_str()).ok()?,
-            model_hash: captures.name("model_hash").unwrap().as_str().to_owned(),
-            model: captures.name("model").unwrap().as_str().to_owned(),
+            model_hash: captures.name("model_hash")?.as_str().to_owned(),
+            model: captures.name("model")?.as_str().to_owned(),
             clip_skip: captures.name("clip_skip")?.as_str().parse::<u64>().ok()?,
         })
     } else {

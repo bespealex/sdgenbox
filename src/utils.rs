@@ -26,28 +26,50 @@ pub fn extract_metadata_from_image(path: &str) -> anyhow::Result<Option<ImagePar
 
 lazy_static! {
     static ref PARAMETERS_REGEX: Regex = Regex::new(
-        r#"^(?P<prompt>[\S\s]+)\nNegative prompt: (?P<negative_prompt>[\S\s]+)\nSteps: (?P<steps>\d+), Sampler: (?P<sampler>.+), CFG scale: (?P<cfg_scale>\d+), Seed: (?P<seed>-?\d+), Size: (?P<size>\d+x\d+), Model hash: (?P<model_hash>.+), Model: (?P<model>.+), Conditional mask weight: (?P<conditional_mask_weight>.+), Clip skip: (?P<clip_skip>\d+)"#,
+        r#"^(?P<prompt>[\S\s]+)\nNegative prompt: (?P<negative_prompt>[\S\s]+)\nSteps: (?P<steps>\d+), Sampler: (?P<sampler>.+), CFG scale: (?P<cfg_scale>\d+), Seed: (?P<seed>-?\d+), Size: (?P<size>\d+x\d+), Model hash: (?P<model_hash>.+), Model: (?P<model>.+?), (?:Conditional mask weight: (?P<conditional_mask_weight>.+), )?Clip skip: (?P<clip_skip>\d+)"#,
     ).unwrap();
 }
 
 /// Parses image parameters to the structure (see [`ImageParameters`])
 fn parse_raw(raw: &str) -> Option<ImageParameters> {
-    if let Some(captures) = PARAMETERS_REGEX.captures(raw) {
-        Some(ImageParameters {
-            prompt: captures.name("prompt")?.as_str().to_owned(),
-            negative_prompt: captures.name("negative_prompt")?.as_str().to_owned(),
-            steps: captures.name("steps")?.as_str().parse::<u64>().ok()?,
-            sampler: captures.name("sampler")?.as_str().to_owned(),
-            cfg_scale: captures.name("cfg_scale")?.as_str().parse::<f64>().ok()?,
-            seed: captures.name("seed")?.as_str().parse::<i64>().ok()?,
-            size: parse_size(captures.name("size")?.as_str()).ok()?,
-            model_hash: captures.name("model_hash")?.as_str().to_owned(),
-            model: captures.name("model")?.as_str().to_owned(),
-            clip_skip: captures.name("clip_skip")?.as_str().parse::<u64>().ok()?,
-        })
-    } else {
-        None
-    }
+    let captures = PARAMETERS_REGEX.captures(raw)?;
+
+    Some(ImageParameters {
+        prompt: captures.name("prompt").unwrap().as_str().to_owned(),
+        negative_prompt: captures
+            .name("negative_prompt")
+            .unwrap()
+            .as_str()
+            .to_owned(),
+        steps: captures
+            .name("steps")
+            .unwrap()
+            .as_str()
+            .parse::<u64>()
+            .unwrap(),
+        sampler: captures.name("sampler").unwrap().as_str().to_owned(),
+        cfg_scale: captures
+            .name("cfg_scale")
+            .unwrap()
+            .as_str()
+            .parse::<f64>()
+            .unwrap(),
+        seed: captures
+            .name("seed")
+            .unwrap()
+            .as_str()
+            .parse::<i64>()
+            .unwrap(),
+        size: parse_size(captures.name("size").unwrap().as_str()).ok()?,
+        model_hash: captures.name("model_hash").unwrap().as_str().to_owned(),
+        model: captures.name("model").unwrap().as_str().to_owned(),
+        clip_skip: captures
+            .name("clip_skip")
+            .unwrap()
+            .as_str()
+            .parse::<u64>()
+            .unwrap(),
+    })
 }
 
 #[derive(Debug)]

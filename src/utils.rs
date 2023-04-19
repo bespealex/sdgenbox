@@ -12,6 +12,11 @@ pub fn extract_metadata_from_image(path: &str) -> anyhow::Result<Option<ImagePar
         .output()
         .context("Failed to spawn proces")?;
     if !output.status.success() {
+        // File is empty
+        if output.status.code() == Some(1) {
+            return Ok(None);
+        }
+
         bail!("Process exited with non-zero status: {}", output.status);
     }
 
@@ -19,6 +24,7 @@ pub fn extract_metadata_from_image(path: &str) -> anyhow::Result<Option<ImagePar
         String::from_utf8(output.stdout).context("Failed to parse command stdout to UTF-8")?;
     let json = json::parse(&raw_json[..]).context("Failed to parse stdout to json")?;
     match json[0]["Parameters"].as_str() {
+        // File has to Parameters metadata
         None => Ok(None),
         Some(raw) => Ok(parse_raw(raw)),
     }

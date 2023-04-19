@@ -8,7 +8,7 @@ use crate::{
 
 #[get("/upload")]
 async fn upload_get() -> actix_web::Result<HttpResponse> {
-    render_html("upload_form.html", &Context::new())
+    render_html("upload_form.html", &Context::new(), HttpResponse::Ok())
 }
 
 #[derive(Debug, MultipartForm)]
@@ -35,5 +35,5 @@ async fn upload_post(
 
     let mut context = Context::new();
     context.insert("message", &body);
-    render_html("upload_result.html", &context)
+    render_html("upload_result.html", &context, HttpResponse::Ok())
 }

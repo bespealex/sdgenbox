@@ -2,8 +2,8 @@ use actix_multipart::form::{tempfile::TempFile, MultipartForm};
 use actix_web::{error::InternalError, get, http::StatusCode, post, HttpResponse};
 use tera::Context;
 
-use crate::{
-    errors::MapErrToInternal, handlers::index::render_html, utils::extract_metadata_from_image,
+use crate::utils::{
+    errors::MapErrToInternal, image::extract_metadata_from_image, render::render_html,
 };
 
 #[get("/upload")]

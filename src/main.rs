@@ -1,8 +1,10 @@
+use std::env;
+
 use actix_web::{web::Data, App, HttpServer};
+use anyhow::Context;
 
 mod handlers;
 mod models;
-mod templates;
 mod utils;
 
 #[tokio::main]
@@ -11,9 +13,11 @@ async fn main() -> anyhow::Result<()> {
     let port = 8080;
 
     env_logger::init();
+    dotenvy::dotenv()?;
 
+    let database_url = env::var("DATABASE_URL").context("DATABASE_URL is missing")?;
     let connection = sqlx::sqlite::SqlitePoolOptions::new()
-        .connect(":memory:")
+        .connect(&database_url)
         .await?;
 
     let app = HttpServer::new(move || {
@@ -22,6 +26,7 @@ async fn main() -> anyhow::Result<()> {
             .service(handlers::index::db_test)
             .service(handlers::upload::upload_get)
             .service(handlers::upload::upload_post)
+            .service(handlers::upload::get_image)
             .app_data(Data::new(connection.clone()))
     })
     .bind((host, port))?;

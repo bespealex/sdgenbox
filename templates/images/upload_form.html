@@ -9,6 +9,12 @@
 </head>
 
 <body>
+    {% match error_message %}
+        {% when Some with (message) %}
+            <div style="color: red;">{{ message }}</div>
+        {% when None %}
+    {% endmatch %}
+
     <form target="/upload" method="post" enctype="multipart/form-data">
         <input type="file" name="file" />
         <button type="submit">Submit</button>

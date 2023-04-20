@@ -1,12 +1,12 @@
 use std::process::Command;
 
-use crate::models::ImageParameters;
+use crate::models::Image;
 use anyhow::{bail, Context};
 use lazy_static::lazy_static;
 use regex::Regex;
 
 /// Extract parameters which were used to generate image from image metadata
-pub fn extract_metadata_from_image(path: &str) -> anyhow::Result<Option<ImageParameters>> {
+pub fn extract_metadata_from_image(path: &str) -> anyhow::Result<Option<Image>> {
     let output = Command::new("exiftool")
         .args([path, "-h", "-Parameters", "-j"])
         .output()
@@ -37,10 +37,12 @@ lazy_static! {
 }
 
 /// Parses image parameters to the structure (see [`ImageParameters`])
-fn parse_raw(raw: &str) -> Option<ImageParameters> {
+fn parse_raw(raw: &str) -> Option<Image> {
     let captures = PARAMETERS_REGEX.captures(raw)?;
 
-    Some(ImageParameters {
+    let (width, height) = parse_size(captures.name("size").unwrap().as_str()).ok()?;
+    Some(Image {
+        id: -1,
         prompt: captures.name("prompt").unwrap().as_str().to_owned(),
         negative_prompt: captures
             .name("negative_prompt")
@@ -51,7 +53,7 @@ fn parse_raw(raw: &str) -> Option<ImageParameters> {
             .name("steps")
             .unwrap()
             .as_str()
-            .parse::<u64>()
+            .parse::<i64>()
             .unwrap(),
         sampler: captures.name("sampler").unwrap().as_str().to_owned(),
         cfg_scale: captures
@@ -66,14 +68,15 @@ fn parse_raw(raw: &str) -> Option<ImageParameters> {
             .as_str()
             .parse::<i64>()
             .unwrap(),
-        size: parse_size(captures.name("size").unwrap().as_str()).ok()?,
+        width,
+        height,
         model_hash: captures.name("model_hash").unwrap().as_str().to_owned(),
         model: captures.name("model").unwrap().as_str().to_owned(),
         clip_skip: captures
             .name("clip_skip")
             .unwrap()
             .as_str()
-            .parse::<u64>()
+            .parse::<i64>()
             .unwrap(),
     })
 }
@@ -82,10 +85,10 @@ fn parse_raw(raw: &str) -> Option<ImageParameters> {
 struct ParseSizeError;
 
 /// Parse string "123x456" to (123, 456)
-fn parse_size(raw: &str) -> Result<(u64, u64), ParseSizeError> {
+fn parse_size(raw: &str) -> Result<(i64, i64), ParseSizeError> {
     let (w, h) = raw.split_once('x').ok_or(ParseSizeError)?;
     Ok((
-        w.parse::<u64>().map_err(|_| ParseSizeError)?,
-        h.parse::<u64>().map_err(|_| ParseSizeError)?,
+        w.parse::<i64>().map_err(|_| ParseSizeError)?,
+        h.parse::<i64>().map_err(|_| ParseSizeError)?,
     ))
 }

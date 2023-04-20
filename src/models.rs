@@ -1,3 +1,5 @@
+use sqlx::{pool::PoolConnection, Sqlite};
+
 /// Parameters what were used to generate image
 ///
 /// Example:
@@ -13,16 +15,59 @@
 /// Model: anything-v4.5-inpainting.inpainting,
 /// Conditional mask weight: 1.0,
 /// Clip skip: 2
-#[derive(Debug)]
-pub struct ImageParameters {
+#[derive(Debug, serde::Serialize, sqlx::FromRow)]
+pub struct Image {
+    pub id: i64,
     pub prompt: String,
     pub negative_prompt: String,
-    pub steps: u64,
+    pub steps: i64,
     pub sampler: String,
     pub cfg_scale: f64,
     pub seed: i64,
-    pub size: (u64, u64),
+    pub width: i64,
+    pub height: i64,
     pub model_hash: String,
     pub model: String,
-    pub clip_skip: u64,
+    pub clip_skip: i64,
+}
+
+pub async fn create_image(
+    connection: &mut PoolConnection<Sqlite>,
+    image: &mut Image,
+) -> sqlx::Result<()> {
+    let id = sqlx::query_scalar!(
+        r#"INSERT INTO image
+         (prompt, negative_prompt, steps, sampler, cfg_scale, seed, width, height, model_hash, model, clip_skip)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        RETURNING id"#,
+        image.prompt,
+        image.negative_prompt,
+        image.steps,
+        image.sampler,
+        image.cfg_scale,
+        image.seed,
+        image.width,
+        image.height,
+        image.model_hash,
+        image.model,
+        image.clip_skip
+    ).fetch_one(connection).await?;
+
+    image.id = id;
+    Ok(())
+}
+
+pub async fn fetch_image_by_id(
+    connection: &mut PoolConnection<Sqlite>,
+    image_id: i64,
+) -> sqlx::Result<Option<Image>> {
+    sqlx::query_as!(Image, "SELECT * FROM image WHERE id = ?", image_id)
+        .fetch_optional(connection)
+        .await
+}
+
+pub async fn fetch_all_images(connection: &mut PoolConnection<Sqlite>) -> sqlx::Result<Vec<Image>> {
+    sqlx::query_as!(Image, "select * from image")
+        .fetch_all(connection)
+        .await
 }

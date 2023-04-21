@@ -28,10 +28,9 @@ async fn main() -> anyhow::Result<()> {
         App::new()
             .service(actix_files::Files::new("/media", "media"))
             .service(handlers::index::index)
-            .service(handlers::index::db_test)
-            .service(handlers::upload::upload_get)
-            .service(handlers::upload::upload_post)
-            .service(handlers::upload::get_image)
+            .service(handlers::images::upload_get)
+            .service(handlers::images::upload_post)
+            .service(handlers::images::get_image)
             .app_data(Data::new(connection.clone()))
     })
     .bind((host, port))?;

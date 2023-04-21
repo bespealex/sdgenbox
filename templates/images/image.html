@@ -10,6 +10,13 @@
 
 <body>
     <pre>{{ "{:#?}"|format(image) }}</pre>
+
+    {% match image.file_path %}
+        {% when Some with (image_url) %}
+            <img src="/{{ image_url }}" alt="">
+        {% when None %}
+            <p>No image found</p>
+    {% endmatch %}
 </body>
 
 </html>

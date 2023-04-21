@@ -78,6 +78,7 @@ fn parse_raw(raw: &str) -> Option<Image> {
             .as_str()
             .parse::<i64>()
             .unwrap(),
+        file_path: None,
     })
 }
 

@@ -8,7 +8,7 @@ use actix_web::{
     HttpResponse, Responder,
 };
 use askama::Template;
-use sqlx::{Pool, Sqlite};
+use sqlx::{Connection, Pool, Sqlite};
 
 use crate::{
     models::{create_image, fetch_image_by_id, Image},
@@ -57,10 +57,13 @@ async fn upload_post(
         None => return Ok(Redirect::to("/images/upload?error_message=No info").see_other()),
         Some(image) => image,
     };
+
     let mut connection = pool.acquire().await.map_err_to_internal()?;
-    create_image(&mut connection, &mut image)
+    let mut transaction = connection.begin().await.map_err_to_internal()?;
+    create_image(&mut transaction, &mut image, form.file)
         .await
         .map_err_to_internal()?;
+    transaction.commit().await.map_err_to_internal()?;
 
     Ok(Redirect::to(format!("/images/{}", image.id)).see_other())
 }

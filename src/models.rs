@@ -1,4 +1,8 @@
-use sqlx::{pool::PoolConnection, Sqlite};
+use std::path::PathBuf;
+
+use actix_multipart::form::tempfile::TempFile;
+use rand::{thread_rng, Rng};
+use sqlx::{pool::PoolConnection, Sqlite, Transaction};
 
 /// Parameters what were used to generate image
 ///
@@ -29,12 +33,14 @@ pub struct Image {
     pub model_hash: String,
     pub model: String,
     pub clip_skip: i64,
+    pub file_path: Option<String>,
 }
 
 pub async fn create_image(
-    connection: &mut PoolConnection<Sqlite>,
+    connection: &mut Transaction<'_, Sqlite>,
     image: &mut Image,
-) -> sqlx::Result<()> {
+    image_file: TempFile,
+) -> anyhow::Result<()> {
     let id = sqlx::query_scalar!(
         r#"INSERT INTO image
          (prompt, negative_prompt, steps, sampler, cfg_scale, seed, width, height, model_hash, model, clip_skip)
@@ -51,10 +57,30 @@ pub async fn create_image(
         image.model_hash,
         image.model,
         image.clip_skip
-    ).fetch_one(connection).await?;
-
+    ).fetch_one(&mut *connection).await?;
     image.id = id;
+
+    let file_path: PathBuf = generate_image_path();
+    image_file.file.persist(&file_path)?;
+    let file_path = file_path.to_string_lossy();
+    sqlx::query!(
+        "UPDATE image SET file_path = ? WHERE id = ?",
+        file_path,
+        image.id
+    )
+    .execute(&mut *connection)
+    .await?;
+
     Ok(())
+}
+
+pub fn generate_image_path() -> PathBuf {
+    let random_file_id = format!("{:16x}", thread_rng().gen::<u64>());
+    let mut image_path = ["media", "images", &random_file_id]
+        .iter()
+        .collect::<PathBuf>();
+    image_path.set_extension("png");
+    image_path
 }
 
 pub async fn fetch_image_by_id(
@@ -63,11 +89,5 @@ pub async fn fetch_image_by_id(
 ) -> sqlx::Result<Option<Image>> {
     sqlx::query_as!(Image, "SELECT * FROM image WHERE id = ?", image_id)
         .fetch_optional(connection)
-        .await
-}
-
-pub async fn fetch_all_images(connection: &mut PoolConnection<Sqlite>) -> sqlx::Result<Vec<Image>> {
-    sqlx::query_as!(Image, "select * from image")
-        .fetch_all(connection)
         .await
 }

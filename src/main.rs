@@ -1,28 +1,31 @@
-use std::env;
-
 use actix_web::{web::Data, App, HttpServer};
-use anyhow::Context;
 use tokio::fs::create_dir_all;
 
+use crate::config::Config;
+
+mod config;
 mod handlers;
 mod models;
 mod utils;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    let host = "localhost";
-    let port = 8080;
-
-    env_logger::init();
+    // Load config
     dotenvy::dotenv()?;
+    let config = envy::from_env::<Config>()?;
+
+    // Configure logging
+    env_logger::init();
 
     // Create missing folders
     create_dir_all("media/images").await?;
 
-    let database_url = env::var("DATABASE_URL").context("DATABASE_URL is missing")?;
-    let connection = sqlx::sqlite::SqlitePoolOptions::new()
-        .connect(&database_url)
+    // Establish sqlite connection
+    let pool = sqlx::sqlite::SqlitePoolOptions::new()
+        .connect(&config.database_url)
         .await?;
+    // Apply sqlx migrations
+    sqlx::migrate!().run(&pool).await?;
 
     let app = HttpServer::new(move || {
         App::new()
@@ -31,10 +34,10 @@ async fn main() -> anyhow::Result<()> {
             .service(handlers::images::upload_get)
             .service(handlers::images::upload_post)
             .service(handlers::images::get_image)
-            .app_data(Data::new(connection.clone()))
+            .app_data(Data::new(pool.clone()))
     })
-    .bind((host, port))?;
-    log::info!("Running server on http://{}:{}/", host, port);
+    .bind((config.host, config.port))?;
+    log::info!("Running server on http://{}:{}/", config.host, config.port);
     app.run().await?;
     Ok(())
 }

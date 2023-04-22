@@ -8,14 +8,16 @@ sdgenbox - simple web server for storing and navigating through generated images
 # Clone repository
 git clone https://github.com/discrimy/sdgenbox.git
 cd sdgenbox
+# Install sqlx-cli for migrations management
+cargo install sqlx-cli --no-default-features -F sqlite -F rustls
+# Create sqlite database and apply migrations (needed to check SQL queries during compilation)
+touch db.sqlite3 && sqlx migrate run
 # Build and run project using rust toolchain
 cargo run
 ```
 
 ## How to create development environment
 ```bash
-# Install sqlx-cli for migrations management
-cargo install sqlx-cli --no-default-features -F sqlite -F rustls
 # Install cargo-watch to rebuild server on files changes
 cargo install cargo-watch
 # Install pre-commit as git hook (you must install pre-commit beforehand, you can use nix or others package installers)

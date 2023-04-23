@@ -4,8 +4,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <link href="/static/bootstrap.min.css" rel="stylesheet"
-        integrity="sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC" crossorigin="anonymous">
+    <link href="/static/bootstrap.min.css" rel="stylesheet" crossorigin="anonymous">
     <title>sdgenbox</title>
 </head>
 
@@ -35,13 +34,11 @@
         </div>
     </nav>
 
-    <div id="content" class="container">
+    <div id="content" class="container d-flex flex-column">
         {% block content %}{% endblock %}
     </div>
 
-    <script src="/static/bootstrap.bundle.min.js"
-        integrity="sha384-MrcW6ZMFYlzcLA8Nl+NtUVF0sA7MsXsP1UyJoMp4YLEuNSfAP+JcXn/tWtIaxVXM"
-        crossorigin="anonymous"></script>
+    <script src="/static/bootstrap.bundle.min.js" crossorigin="anonymous"></script>
 </body>
 
 </html>

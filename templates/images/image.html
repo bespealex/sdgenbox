@@ -1,12 +1,60 @@
 {% extends "base.html" %}
 
 {% block content %}
-<pre>{{ "{:#?}"|format(image) }}</pre>
-
 {% match image.file_path %}
     {% when Some with (image_url) %}
-        <img src="/{{ image_url }}" alt="">
+        <img class="img-thumbnail" style="object-fit: scale-down; max-height: 70vh;" src="/{{ image_url }}" alt="">
     {% when None %}
         <p>No image found</p>
 {% endmatch %}
+
+<table id="properties" class="table">
+<tbody>
+    <tr>
+        <td>ID</td>
+        <td>{{ image.id }}</td>
+    </tr>
+    <tr>
+        <td>Prompt</td>
+        <td>{{ image.prompt }}</td>
+    </tr>
+    <tr>
+        <td>Negative prompt</td>
+        <td>{{ image.negative_prompt }}</td>
+    </tr>
+    <tr>
+        <td>Steps</td>
+        <td>{{ image.steps }}</td>
+    </tr>
+    <tr>
+        <td>Sampler</td>
+        <td>{{ image.sampler }}</td>
+    </tr>
+    <tr>
+        <td>CFG Scale</td>
+        <td>{{ image.cfg_scale }}</td>
+    </tr>
+    <tr>
+        <td>Seed</td>
+        <td>{{ image.seed }}</td>
+    </tr>
+    <tr>
+        <td>Size</td>
+        <td>{{ image.width }}x{{ image.height }}</td>
+    </tr>
+    <tr>
+        <td>Model</td>
+        <td>{{ image.model }} ({{ image.model_hash }})</td>
+    </tr>
+    <tr>
+        <td>Clip skip</td>
+        <td>{{ image.clip_skip }}</td>
+    </tr>
+    <tr>
+        <td>Created at</td>
+        <td>{{ image.created_at }}</td>
+    </tr>
+</tbody>
+</table>
+
 {% endblock %}

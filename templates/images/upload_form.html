@@ -1,14 +1,19 @@
 {% extends "base.html" %}
 
 {% block content %}
-{% match error_message %}
-    {% when Some with (message) %}
-        <div style="color: red;">{{ message }}</div>
-    {% when None %}
-{% endmatch %}
-
-<form target="/upload" method="post" enctype="multipart/form-data">
-    <input type="file" name="file" />
-    <button type="submit">Submit</button>
+<form target="/images/upload" method="post" enctype="multipart/form-data">
+    <h2>Upload image</h2>
+    <div class="mb-3">
+        <label for="inputFile" class="form-label">Image file</label>
+        {% match error_message %}
+            {% when Some with (message) %}
+                <input type="file" class="form-control is-invalid" id="inputFile" name="file" required aria-describedby="inputFileHelp inputHelpInvalid">
+                <div id="inputHelpInvalid" class="invalid-feedback">{{ message }}</div>
+            {% when None %}
+                <input type="file" class="form-control" id="inputFile" name="file" required aria-describedby="inputFileHelp inputHelpInvalid">
+        {% endmatch %}
+        <div id="inputFileHelp" class="form-text">File must be downloaded from A1111 interface (original)</div>
+    </div>
+    <button type="submit" class="btn btn-primary">Submit</button>
 </form>
 {% endblock %}

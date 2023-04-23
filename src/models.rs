@@ -102,17 +102,15 @@ pub async fn fetch_images(
         query
             .push(" WHERE cast(id as text) LIKE ")
             .push_bind(format!("%{}%", search.to_uppercase()))
-            .push(" OR upper(prompt) = ")
+            .push(" OR upper(prompt) LIKE ")
             .push_bind(format!("%{}%", search.to_uppercase()))
             .push(" OR upper(negative_prompt) LIKE ")
             .push_bind(format!("%{}%", search.to_uppercase()))
-            .push(" OR upper(negative_prompt) = ")
+            .push(" OR upper(sampler) LIKE ")
             .push_bind(format!("%{}%", search.to_uppercase()))
-            .push(" OR upper(sampler) = ")
+            .push(" OR upper(model_hash) LIKE ")
             .push_bind(format!("%{}%", search.to_uppercase()))
-            .push(" OR upper(model_hash) = ")
-            .push_bind(format!("%{}%", search.to_uppercase()))
-            .push(" OR upper(model) = ")
+            .push(" OR upper(model) LIKE ")
             .push_bind(format!("%{}%", search.to_uppercase()));
     }
     query.push(" ORDER BY created_at DESC");

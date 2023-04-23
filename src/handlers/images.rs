@@ -55,7 +55,12 @@ async fn upload_post(
         ))?)
         .map_err_to_internal()?;
     let mut image = match image {
-        None => return Ok(Redirect::to("/images/upload?error_message=No info").see_other()),
+        None => {
+            return Ok(Redirect::to(
+                "/images/upload?error_message=Cannot parse metadata from provided file",
+            )
+            .see_other())
+        }
         Some(image) => image,
     };
 
@@ -117,7 +122,7 @@ pub async fn list_images(
 ) -> actix_web::Result<impl Responder> {
     let search_form = search_form.into_inner();
     let search = &search_form.search.as_deref();
-
+    dbg!(search);
     let mut connection = pool.acquire().await.map_err_to_internal()?;
     let images = fetch_images(&mut connection, *search)
         .await

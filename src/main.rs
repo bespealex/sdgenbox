@@ -28,6 +28,7 @@ async fn main() -> anyhow::Result<()> {
     let app = HttpServer::new(move || {
         App::new()
             .service(actix_files::Files::new("/media", "media"))
+            .service(actix_files::Files::new("/static", "static"))
             .service(handlers::index::index)
             .service(handlers::images::upload_get)
             .service(handlers::images::upload_post)

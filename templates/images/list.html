@@ -3,17 +3,20 @@
 {% block content %}
 <form action="/images" method="get">
     <h2>Search images</h2>
-
-    <label for="search">Search: </label>
-    <input type="text" name="search" id="search" value="{{ search_form.search.as_deref().unwrap_or("") }}">
-
-    <input type="submit" value="Search">
+    <div class="mb-3">
+        <label for="inputSearch" class="form-label">Search</label>
+        <input type="text" class="form-control" id="inputSearch" name="search" aria-describedby="inputSearchHelp" value="{{ search_form.search.as_deref().unwrap_or("") }}">
+        <div id="inputSearchHelp" class="form-text">Image prompt, sampler, seed, model (hash or name), etc...</div>
+    </div>
+    <button type="submit" class="btn btn-primary">Submit</button>
 </form>
 
-<h2>All images:</h2>
-<ol>
-    {% for image in images %}
-    <li><a href="/images/{{ image.id }}">{{ image.id }} - {{ image.created_at }}</a></li>
-    {% endfor %}
-</ol>
+<div id="images-">
+    <h2>Images:</h2>
+    <div class="list-group">
+        {% for image in images %}
+        <a href="/images/{{ image.id }}" class="list-group-item list-group-item-action">{{ image.id }} - {{ image.created_at }}</a>
+        {% endfor %}
+    </div>
+</div>
 {% endblock %}

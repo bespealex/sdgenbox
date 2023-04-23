@@ -8,6 +8,7 @@ use actix_web::{
     HttpResponse, Responder,
 };
 use askama::Template;
+use serde::Deserialize;
 use sqlx::{Connection, Pool, Sqlite};
 
 use crate::{
@@ -99,14 +100,34 @@ pub async fn get_image(
 
 #[derive(Template)]
 #[template(path = "images/list.html")]
-struct ListImagesTemplate {
-    images: Vec<Image>,
+struct ListImagesTemplate<'a> {
+    images: &'a [Image],
+    search_form: &'a SearchForm,
+}
+
+#[derive(Deserialize)]
+pub struct SearchForm {
+    search: Option<String>,
 }
 
 #[get("/images")]
-pub async fn list_images(pool: web::Data<Pool<Sqlite>>) -> actix_web::Result<impl Responder> {
-    let mut connection = pool.acquire().await.map_err_to_internal()?;
-    let images = fetch_images(&mut connection).await.map_err_to_internal()?;
+pub async fn list_images(
+    pool: web::Data<Pool<Sqlite>>,
+    search_form: web::Query<SearchForm>,
+) -> actix_web::Result<impl Responder> {
+    let search_form = search_form.into_inner();
+    let search = &search_form.search.as_deref();
 
-    render_html(ListImagesTemplate { images }, HttpResponse::Ok())
+    let mut connection = pool.acquire().await.map_err_to_internal()?;
+    let images = fetch_images(&mut connection, *search)
+        .await
+        .map_err_to_internal()?;
+
+    render_html(
+        ListImagesTemplate {
+            images: &images[..],
+            search_form: &search_form,
+        },
+        HttpResponse::Ok(),
+    )
 }

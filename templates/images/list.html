@@ -1,6 +1,15 @@
 {% extends "base.html" %}
 
 {% block content %}
+<form action="/images" method="get">
+    <h2>Search images</h2>
+
+    <label for="search">Search: </label>
+    <input type="text" name="search" id="search" value="{{ search_form.search.as_deref().unwrap_or("") }}">
+
+    <input type="submit" value="Search">
+</form>
+
 <h2>All images:</h2>
 <ol>
     {% for image in images %}

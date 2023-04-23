@@ -87,8 +87,23 @@ pub async fn fetch_image_by_id(
         .await
 }
 
-pub async fn fetch_images(connection: &mut PoolConnection<Sqlite>) -> sqlx::Result<Vec<Image>> {
-    sqlx::query_as!(Image, "SELECT id as 'id!', prompt, negative_prompt, steps, sampler, cfg_scale, seed, width, height, model_hash, model, clip_skip, file_path, created_at FROM image ORDER BY created_at DESC")
+pub async fn fetch_images(
+    connection: &mut PoolConnection<Sqlite>,
+    search: Option<&str>,
+) -> sqlx::Result<Vec<Image>> {
+    let mut query = sqlx::QueryBuilder::new("SELECT id, prompt, negative_prompt, steps, sampler, cfg_scale, seed, width, height, model_hash, model, clip_skip, file_path, created_at FROM image");
+    if let Some(search) = search {
+        query
+            .push(" WHERE upper(prompt) LIKE ")
+            .push_bind(format!("%{}%", search.to_uppercase()));
+    }
+    query.push(" ORDER BY created_at DESC");
+
+    Ok(query
+        .build()
         .fetch_all(connection)
-        .await
+        .await?
+        .into_iter()
+        .map(|row| sqlx::FromRow::from_row(&row).unwrap())
+        .collect())
 }

@@ -86,3 +86,9 @@ pub async fn fetch_image_by_id(
         .fetch_optional(connection)
         .await
 }
+
+pub async fn fetch_images(connection: &mut PoolConnection<Sqlite>) -> sqlx::Result<Vec<Image>> {
+    sqlx::query_as!(Image, "SELECT id as 'id!', prompt, negative_prompt, steps, sampler, cfg_scale, seed, width, height, model_hash, model, clip_skip, file_path, created_at FROM image ORDER BY created_at DESC")
+        .fetch_all(connection)
+        .await
+}

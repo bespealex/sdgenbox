@@ -32,6 +32,7 @@ async fn main() -> anyhow::Result<()> {
             .service(handlers::images::upload_get)
             .service(handlers::images::upload_post)
             .service(handlers::images::get_image)
+            .service(handlers::images::list_images)
             .app_data(Data::new(pool.clone()))
     })
     .bind((config.host, config.port))?;

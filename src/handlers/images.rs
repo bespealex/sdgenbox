@@ -11,7 +11,7 @@ use askama::Template;
 use sqlx::{Connection, Pool, Sqlite};
 
 use crate::{
-    models::{create_image, fetch_image_by_id, Image},
+    models::{create_image, fetch_image_by_id, fetch_images, Image},
     utils::{errors::MapErrToInternal, image::extract_metadata_from_image, render::render_html},
 };
 
@@ -95,4 +95,18 @@ pub async fn get_image(
     };
 
     render_html(GetImageTemplate { image }, HttpResponse::Created())
+}
+
+#[derive(Template)]
+#[template(path = "images/list.html")]
+struct ListImagesTemplate {
+    images: Vec<Image>,
+}
+
+#[get("/images")]
+pub async fn list_images(pool: web::Data<Pool<Sqlite>>) -> actix_web::Result<impl Responder> {
+    let mut connection = pool.acquire().await.map_err_to_internal()?;
+    let images = fetch_images(&mut connection).await.map_err_to_internal()?;
+
+    render_html(ListImagesTemplate { images }, HttpResponse::Ok())
 }

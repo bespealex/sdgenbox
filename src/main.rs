@@ -24,8 +24,6 @@ async fn main() -> anyhow::Result<()> {
     let pool = sqlx::sqlite::SqlitePoolOptions::new()
         .connect(&config.database_url)
         .await?;
-    // Apply sqlx migrations
-    // sqlx::migrate!().run(&pool).await?;
 
     let app = HttpServer::new(move || {
         App::new()

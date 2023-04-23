@@ -79,6 +79,7 @@ fn parse_raw(raw: &str) -> Option<Image> {
             .parse::<i64>()
             .unwrap(),
         file_path: None,
+        created_at: chrono::NaiveDateTime::default(),
     })
 }
 

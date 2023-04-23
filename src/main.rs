@@ -25,7 +25,7 @@ async fn main() -> anyhow::Result<()> {
         .connect(&config.database_url)
         .await?;
     // Apply sqlx migrations
-    sqlx::migrate!().run(&pool).await?;
+    // sqlx::migrate!().run(&pool).await?;
 
     let app = HttpServer::new(move || {
         App::new()

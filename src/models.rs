@@ -34,6 +34,7 @@ pub struct Image {
     pub model: String,
     pub clip_skip: i64,
     pub file_path: Option<String>,
+    pub created_at: chrono::NaiveDateTime,
 }
 
 pub async fn create_image(
@@ -41,10 +42,14 @@ pub async fn create_image(
     image: &mut Image,
     image_file: TempFile,
 ) -> anyhow::Result<()> {
+    let file_path: PathBuf = generate_image_path();
+    image_file.file.persist(&file_path)?;
+    let file_path = file_path.to_string_lossy();
+
     let id = sqlx::query_scalar!(
         r#"INSERT INTO image
-         (prompt, negative_prompt, steps, sampler, cfg_scale, seed, width, height, model_hash, model, clip_skip)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+         (prompt, negative_prompt, steps, sampler, cfg_scale, seed, width, height, model_hash, model, clip_skip, file_path)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         RETURNING id"#,
         image.prompt,
         image.negative_prompt,
@@ -56,20 +61,10 @@ pub async fn create_image(
         image.height,
         image.model_hash,
         image.model,
-        image.clip_skip
+        image.clip_skip,
+        file_path,
     ).fetch_one(&mut *connection).await?;
     image.id = id;
-
-    let file_path: PathBuf = generate_image_path();
-    image_file.file.persist(&file_path)?;
-    let file_path = file_path.to_string_lossy();
-    sqlx::query!(
-        "UPDATE image SET file_path = ? WHERE id = ?",
-        file_path,
-        image.id
-    )
-    .execute(&mut *connection)
-    .await?;
 
     Ok(())
 }

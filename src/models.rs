@@ -91,10 +91,28 @@ pub async fn fetch_images(
     connection: &mut PoolConnection<Sqlite>,
     search: Option<&str>,
 ) -> sqlx::Result<Vec<Image>> {
+    // Empty search is the same as no search
+    let search = match search {
+        Some("") => None,
+        other => other,
+    };
+
     let mut query = sqlx::QueryBuilder::new("SELECT id, prompt, negative_prompt, steps, sampler, cfg_scale, seed, width, height, model_hash, model, clip_skip, file_path, created_at FROM image");
     if let Some(search) = search {
         query
-            .push(" WHERE upper(prompt) LIKE ")
+            .push(" WHERE cast(id as text) LIKE ")
+            .push_bind(format!("%{}%", search.to_uppercase()))
+            .push(" OR upper(prompt) = ")
+            .push_bind(format!("%{}%", search.to_uppercase()))
+            .push(" OR upper(negative_prompt) LIKE ")
+            .push_bind(format!("%{}%", search.to_uppercase()))
+            .push(" OR upper(negative_prompt) = ")
+            .push_bind(format!("%{}%", search.to_uppercase()))
+            .push(" OR upper(sampler) = ")
+            .push_bind(format!("%{}%", search.to_uppercase()))
+            .push(" OR upper(model_hash) = ")
+            .push_bind(format!("%{}%", search.to_uppercase()))
+            .push(" OR upper(model) = ")
             .push_bind(format!("%{}%", search.to_uppercase()));
     }
     query.push(" ORDER BY created_at DESC");

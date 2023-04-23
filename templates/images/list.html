@@ -13,7 +13,7 @@
 <h2>All images:</h2>
 <ol>
     {% for image in images %}
-    <li><a href="/images/{{ image.id }}">{{ image.created_at }}</a></li>
+    <li><a href="/images/{{ image.id }}">{{ image.id }} - {{ image.created_at }}</a></li>
     {% endfor %}
 </ol>
 {% endblock %}

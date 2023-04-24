@@ -1,9 +1,9 @@
+use std::path::Path;
+
 use actix_multipart::form::{tempfile::TempFile, MultipartForm};
 use actix_web::{
     error::InternalError,
-    get,
     http::{header::ContentType, StatusCode},
-    post,
     web::{self, Data, Redirect},
     HttpResponse, Responder,
 };
@@ -18,17 +18,16 @@ use crate::{
 
 #[derive(Template)]
 #[template(path = "images/upload_form.html")]
-struct UploadFormTemplate<'a> {
+pub struct UploadFormTemplate<'a> {
     error_message: Option<&'a str>,
 }
 
 #[derive(serde::Deserialize)]
-struct UploadGetQuery {
+pub struct UploadGetQuery {
     error_message: Option<String>,
 }
 
-#[get("/images/upload")]
-async fn upload_get(query: web::Query<UploadGetQuery>) -> actix_web::Result<HttpResponse> {
+pub async fn upload_get(query: web::Query<UploadGetQuery>) -> actix_web::Result<HttpResponse> {
     render_html(
         UploadFormTemplate {
             error_message: query.error_message.as_deref(),
@@ -38,13 +37,12 @@ async fn upload_get(query: web::Query<UploadGetQuery>) -> actix_web::Result<Http
 }
 
 #[derive(Debug, MultipartForm)]
-struct UploadForm {
+pub struct UploadForm {
     #[multipart]
     file: TempFile,
 }
 
-#[post("/images/upload")]
-async fn upload_post(
+pub async fn upload_post(
     MultipartForm(form): MultipartForm<UploadForm>,
     pool: Data<Pool<Sqlite>>,
 ) -> actix_web::Result<impl Responder> {
@@ -66,9 +64,16 @@ async fn upload_post(
 
     let mut connection = pool.acquire().await.map_err_to_internal()?;
     let mut transaction = connection.begin().await.map_err_to_internal()?;
-    create_image(&mut transaction, &mut image, form.file)
-        .await
-        .map_err_to_internal()?;
+
+    let mut image_file = tokio::fs::File::from_std(form.file.file.into_file());
+    create_image(
+        &mut transaction,
+        &mut image,
+        &mut image_file,
+        Path::new("media"),
+    )
+    .await
+    .map_err_to_internal()?;
     transaction.commit().await.map_err_to_internal()?;
 
     Ok(Redirect::to(format!("/images/{}", image.id)).see_other())
@@ -76,11 +81,10 @@ async fn upload_post(
 
 #[derive(Template)]
 #[template(path = "images/image.html")]
-struct GetImageTemplate {
+pub struct GetImageTemplate {
     image: Image,
 }
 
-#[get("/images/{id}")]
 pub async fn get_image(
     pool: web::Data<Pool<Sqlite>>,
     path: web::Path<(i64,)>,
@@ -105,7 +109,7 @@ pub async fn get_image(
 
 #[derive(Template)]
 #[template(path = "images/list.html")]
-struct ListImagesTemplate<'a> {
+pub struct ListImagesTemplate<'a> {
     images: &'a [Image],
     search_form: &'a SearchForm,
 }
@@ -115,7 +119,6 @@ pub struct SearchForm {
     search: Option<String>,
 }
 
-#[get("/images")]
 pub async fn list_images(
     pool: web::Data<Pool<Sqlite>>,
     search_form: web::Query<SearchForm>,
@@ -136,3 +139,6 @@ pub async fn list_images(
         HttpResponse::Ok(),
     )
 }
+
+#[cfg(test)]
+mod test {}

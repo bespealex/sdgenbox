@@ -1,6 +1,6 @@
 -- Add up migration script here
 ALTER TABLE image
-ADD COLUMN created_at DATETIME
+ADD COLUMN created_at INTEGER
 DEFAULT NULL /* replace me */;
 
 

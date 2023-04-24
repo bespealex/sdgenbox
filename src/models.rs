@@ -1,8 +1,8 @@
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
-use actix_multipart::form::tempfile::TempFile;
 use rand::{thread_rng, Rng};
-use sqlx::{pool::PoolConnection, Sqlite, Transaction};
+use sqlx::{Executor, Sqlite, Transaction};
+use tokio::fs::File;
 
 /// Parameters what were used to generate image
 ///
@@ -19,7 +19,7 @@ use sqlx::{pool::PoolConnection, Sqlite, Transaction};
 /// Model: anything-v4.5-inpainting.inpainting,
 /// Conditional mask weight: 1.0,
 /// Clip skip: 2
-#[derive(Debug, serde::Serialize, sqlx::FromRow)]
+#[derive(Debug, PartialEq, serde::Serialize, sqlx::FromRow)]
 pub struct Image {
     pub id: i64,
     pub prompt: String,
@@ -38,12 +38,14 @@ pub struct Image {
 }
 
 pub async fn create_image(
-    connection: &mut Transaction<'_, Sqlite>,
+    transaction: &mut Transaction<'_, Sqlite>,
     image: &mut Image,
-    image_file: TempFile,
+    image_file: &mut File,
+    media_root: &Path,
 ) -> anyhow::Result<()> {
-    let file_path: PathBuf = generate_image_path();
-    image_file.file.persist(&file_path)?;
+    let file_path: PathBuf = generate_image_path(media_root);
+    let mut file = tokio::fs::File::create(&file_path).await?;
+    tokio::io::copy(image_file, &mut file).await?;
     let file_path = file_path.to_string_lossy();
 
     let id = sqlx::query_scalar!(
@@ -63,32 +65,31 @@ pub async fn create_image(
         image.model,
         image.clip_skip,
         file_path,
-    ).fetch_one(&mut *connection).await?;
+    ).fetch_one(&mut *transaction).await?;
     image.id = id;
+    image.file_path = Some(file_path.to_string());
 
     Ok(())
 }
 
-pub fn generate_image_path() -> PathBuf {
+pub fn generate_image_path(media_root: &Path) -> PathBuf {
     let random_file_id = format!("{:16x}", thread_rng().gen::<u64>());
-    let mut image_path = ["media", "images", &random_file_id]
-        .iter()
-        .collect::<PathBuf>();
+    let mut image_path = media_root.join("images").join(random_file_id.as_str());
     image_path.set_extension("png");
     image_path
 }
 
 pub async fn fetch_image_by_id(
-    connection: &mut PoolConnection<Sqlite>,
+    executor: impl Executor<'_, Database = Sqlite>,
     image_id: i64,
 ) -> sqlx::Result<Option<Image>> {
-    sqlx::query_as!(Image, "SELECT * FROM image WHERE id = ?", image_id)
-        .fetch_optional(connection)
+    sqlx::query_as!(Image, r#"SELECT id, prompt, negative_prompt, steps, sampler, cfg_scale, seed, width, height, model_hash, model, clip_skip, file_path, created_at as "created_at: _" FROM image WHERE id = ?"#, image_id)
+        .fetch_optional(executor)
         .await
 }
 
 pub async fn fetch_images(
-    connection: &mut PoolConnection<Sqlite>,
+    exetutor: impl Executor<'_, Database = Sqlite>,
     search: Option<&str>,
 ) -> sqlx::Result<Vec<Image>> {
     // Empty search is the same as no search
@@ -117,9 +118,109 @@ pub async fn fetch_images(
 
     Ok(query
         .build()
-        .fetch_all(connection)
+        .fetch_all(exetutor)
         .await?
         .into_iter()
         .map(|row| sqlx::FromRow::from_row(&row).unwrap())
         .collect())
+}
+
+#[cfg(test)]
+mod test {
+    use std::{fs::create_dir, path::Path};
+
+    use chrono::NaiveDate;
+    use sqlx::{migrate, pool::PoolConnection, Acquire, Sqlite};
+    use tempfile::{NamedTempFile, TempDir};
+
+    use super::{create_image, fetch_image_by_id, Image};
+
+    fn new_test_image() -> Image {
+        Image {
+            id: 0,
+            prompt: "prompt".to_string(),
+            negative_prompt: "negative prompt".to_string(),
+            steps: 42,
+            sampler: "sampler".to_string(),
+            cfg_scale: 4.2,
+            seed: 1234,
+            width: 400,
+            height: 600,
+            model_hash: "modelhash".to_string(),
+            model: "model".to_string(),
+            clip_skip: 1,
+            file_path: None,
+            created_at: NaiveDate::from_ymd_opt(2023, 4, 24)
+                .unwrap()
+                .and_hms_opt(11, 22, 33)
+                .unwrap(),
+        }
+    }
+
+    async fn new_connection() -> PoolConnection<Sqlite> {
+        let pool = sqlx::sqlite::SqlitePoolOptions::new()
+            .connect(":memory:")
+            .await
+            .unwrap();
+        migrate!().run(&pool).await.unwrap();
+        pool.acquire().await.unwrap()
+    }
+
+    fn prepare_media() -> TempDir {
+        let media_root = TempDir::new().unwrap();
+        create_dir(media_root.path().join("images")).unwrap();
+        media_root
+    }
+
+    #[actix_web::test]
+    async fn test_create_image() {
+        let mut connection = new_connection().await;
+        let mut transaction = connection.begin().await.unwrap();
+        let media_root = prepare_media();
+
+        let mut image = new_test_image();
+        let original_file = NamedTempFile::new().unwrap();
+        create_image(
+            &mut transaction,
+            &mut image,
+            &mut tokio::fs::File::from_std(original_file.into_file()),
+            media_root.path(),
+        )
+        .await
+        .unwrap();
+
+        assert_ne!(image.id, 0);
+        let image_file = image.file_path.unwrap();
+        assert!(Path::new(&image_file).exists());
+    }
+
+    #[actix_web::test]
+    async fn test_image_get_by_id() {
+        let mut connection = new_connection().await;
+        let mut transaction = connection.begin().await.unwrap();
+        let media_root = prepare_media();
+
+        let mut image = new_test_image();
+        let original_file = NamedTempFile::new().unwrap();
+        create_image(
+            &mut transaction,
+            &mut image,
+            &mut tokio::fs::File::from_std(original_file.into_file()),
+            media_root.path(),
+        )
+        .await
+        .unwrap();
+
+        let fetched_image = fetch_image_by_id(&mut transaction, image.id).await.unwrap();
+        let fetched_image = fetched_image.unwrap();
+
+        assert_eq!(
+            fetched_image,
+            Image {
+                // autofilled by DB
+                created_at: fetched_image.created_at,
+                ..image
+            }
+        )
+    }
 }

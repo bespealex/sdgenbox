@@ -1,0 +1,25 @@
+# https://taskfile.dev
+
+version: "3"
+
+dotenv: [.env]
+
+tasks:
+  test:
+    cmds:
+      - cargo test
+  watch-run:
+    cmds:
+      - cargo watch -x run
+  lint:
+    cmds:
+      - cargo fmt
+      - cargo clippy
+  autofix:
+    cmds:
+      - cargo clippy --fix --allow-dirty
+      - cargo fmt
+  db-cli:
+    cmds:
+      - sqlite3 ${DATABASE_URL/sqlite:\/\//}
+    interactive: true

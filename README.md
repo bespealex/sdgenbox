@@ -18,12 +18,16 @@ cargo run
 
 ## How to create development environment
 ```bash
+# Install `task` task runner and pre-commit
+nix-env -Ai nixpkgs.pre-commit nixpkgs.go-task  # or use other package manager
 # Install cargo-watch to rebuild server on files changes
 cargo install cargo-watch
-# Install pre-commit as git hook (you must install pre-commit beforehand, you can use nix or others package installers)
+# Install pre-commit as git hook
 pre-commit install
+# Run tests to validate the installation is alright
+task test
 # Run and autorebuild server
-cargo watch -x run
+task watch-run
 ```
 
 ## Why I built it

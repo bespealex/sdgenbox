@@ -1,11 +1,13 @@
 {% extends "base.html" %}
 
 {% block content %}
+
+{% let search = search_form.search.as_deref().unwrap_or("") %}
 <form action="/images" method="get">
     <h2>Search images</h2>
     <div class="mb-3">
         <label for="inputSearch" class="form-label">Search</label>
-        <input type="text" class="form-control" id="inputSearch" name="search" aria-describedby="inputSearchHelp" value="{{ search_form.search.as_deref().unwrap_or("") }}">
+        <input type="text" class="form-control" id="inputSearch" name="search" aria-describedby="inputSearchHelp" value="{{ search }}">
         <div id="inputSearchHelp" class="form-text">Image prompt, sampler, seed, model (hash or name), etc...</div>
     </div>
     <button type="submit" class="btn btn-primary">Submit</button>
@@ -30,5 +32,16 @@
         </div>
         {% endfor %}
     </div>
+
+    <ul class="pagination d-flex flex-row justify-content-center">
+        {% for page in 0..pages %}
+            {% let page_link = format!("/images?search={}&page={}", search, page) %}
+            {% if page == current_page %}
+                <li class="page-item active"><a class="page-link" href="{{ page_link }}">{{ page }}</a></li>
+            {% else %}
+                <li class="page-item"><a class="page-link" href="{{ page_link }}">{{ page }}</a></li>
+            {% endif %}
+        {% endfor %}
+    </ul>
 </div>
 {% endblock %}

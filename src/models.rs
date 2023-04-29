@@ -1,7 +1,7 @@
 use std::path::{Path, PathBuf};
 
 use rand::{thread_rng, Rng};
-use sqlx::{Executor, Sqlite, Transaction};
+use sqlx::{Executor, QueryBuilder, Row, Sqlite, Transaction};
 use tokio::fs::File;
 
 /// Parameters what were used to generate image
@@ -88,9 +88,59 @@ pub async fn fetch_image_by_id(
         .await
 }
 
-pub async fn fetch_images(
-    exetutor: impl Executor<'_, Database = Sqlite>,
+pub struct Limits {
+    offset: u32,
+    limit: u32,
+}
+
+impl Limits {
+    pub fn from_page(page: u32, page_size: u32) -> Self {
+        Limits {
+            offset: page_size * page,
+            limit: page_size,
+        }
+    }
+}
+
+fn add_filter_to_query(query: &mut QueryBuilder<Sqlite>, search: &str) {
+    query
+        .push(" WHERE cast(id as text) LIKE ")
+        .push_bind(format!("%{}%", search.to_uppercase()))
+        .push(" OR upper(prompt) LIKE ")
+        .push_bind(format!("%{}%", search.to_uppercase()))
+        .push(" OR upper(negative_prompt) LIKE ")
+        .push_bind(format!("%{}%", search.to_uppercase()))
+        .push(" OR upper(sampler) LIKE ")
+        .push_bind(format!("%{}%", search.to_uppercase()))
+        .push(" OR upper(model_hash) LIKE ")
+        .push_bind(format!("%{}%", search.to_uppercase()))
+        .push(" OR upper(model) LIKE ")
+        .push_bind(format!("%{}%", search.to_uppercase()));
+}
+
+pub async fn fetch_images_count(
+    executor: impl Executor<'_, Database = Sqlite>,
     search: Option<&str>,
+) -> sqlx::Result<u32> {
+    // Empty search is the same as no search
+    let search = match search {
+        Some("") => None,
+        other => other,
+    };
+
+    let mut query = sqlx::QueryBuilder::new("SELECT count(*) FROM image");
+    if let Some(search) = search {
+        add_filter_to_query(&mut query, search);
+    }
+    let size = query.build().fetch_one(executor).await?.try_get(0)?;
+
+    Ok(size)
+}
+
+pub async fn fetch_images(
+    executor: impl Executor<'_, Database = Sqlite>,
+    search: Option<&str>,
+    limits: &Limits,
 ) -> sqlx::Result<Vec<Image>> {
     // Empty search is the same as no search
     let search = match search {
@@ -98,31 +148,26 @@ pub async fn fetch_images(
         other => other,
     };
 
-    let mut query = sqlx::QueryBuilder::new("SELECT id, prompt, negative_prompt, steps, sampler, cfg_scale, seed, width, height, model_hash, model, clip_skip, file_path, created_at FROM image");
+    let mut images_query = sqlx::QueryBuilder::new("SELECT id, prompt, negative_prompt, steps, sampler, cfg_scale, seed, width, height, model_hash, model, clip_skip, file_path, created_at FROM image");
     if let Some(search) = search {
-        query
-            .push(" WHERE cast(id as text) LIKE ")
-            .push_bind(format!("%{}%", search.to_uppercase()))
-            .push(" OR upper(prompt) LIKE ")
-            .push_bind(format!("%{}%", search.to_uppercase()))
-            .push(" OR upper(negative_prompt) LIKE ")
-            .push_bind(format!("%{}%", search.to_uppercase()))
-            .push(" OR upper(sampler) LIKE ")
-            .push_bind(format!("%{}%", search.to_uppercase()))
-            .push(" OR upper(model_hash) LIKE ")
-            .push_bind(format!("%{}%", search.to_uppercase()))
-            .push(" OR upper(model) LIKE ")
-            .push_bind(format!("%{}%", search.to_uppercase()));
+        add_filter_to_query(&mut images_query, search);
     }
-    query.push(" ORDER BY created_at DESC");
+    images_query.push(" ORDER BY created_at DESC");
+    images_query
+        .push(" LIMIT ")
+        .push_bind(limits.limit)
+        .push(" OFFSET ")
+        .push_bind(limits.offset);
 
-    Ok(query
+    let images = images_query
         .build()
-        .fetch_all(exetutor)
+        .fetch_all(executor)
         .await?
         .into_iter()
         .map(|row| sqlx::FromRow::from_row(&row).unwrap())
-        .collect())
+        .collect();
+
+    Ok(images)
 }
 
 #[cfg(test)]

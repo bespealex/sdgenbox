@@ -11,7 +11,7 @@ use serde::Deserialize;
 use sqlx::{Connection, Pool, Sqlite, Transaction};
 
 use crate::{
-    models::{create_image, fetch_image_by_id, fetch_images, Image},
+    models::{create_image, fetch_image_by_id, fetch_images, fetch_images_count, Image, Limits},
     utils::{errors::MapErrToInternal, image::extract_metadata_from_image, render::render_html},
 };
 
@@ -130,6 +130,8 @@ pub async fn get_image(
 pub struct ListImagesTemplate<'a> {
     images: &'a [Image],
     search_form: &'a SearchForm,
+    current_page: u32,
+    pages: u32,
 }
 
 #[derive(Deserialize)]
@@ -137,22 +139,38 @@ pub struct SearchForm {
     search: Option<String>,
 }
 
+#[derive(Deserialize)]
+pub struct PageQuery {
+    page: Option<u32>,
+}
+
+const PAGE_SIZE: u32 = 18;
+
 pub async fn list_images(
     pool: web::Data<Pool<Sqlite>>,
     search_form: web::Query<SearchForm>,
+    page: web::Query<PageQuery>,
 ) -> actix_web::Result<impl Responder> {
+    let mut connection = pool.acquire().await.map_err_to_internal()?;
     let search_form = search_form.into_inner();
     let search = &search_form.search.as_deref();
-    dbg!(search);
-    let mut connection = pool.acquire().await.map_err_to_internal()?;
-    let images = fetch_images(&mut connection, *search)
+    let page = page.into_inner().page.unwrap_or(0);
+
+    let limits = Limits::from_page(page, PAGE_SIZE);
+    let images = fetch_images(&mut connection, *search, &limits)
+        .await
+        .map_err_to_internal()?;
+    let count = fetch_images_count(&mut connection, *search)
         .await
         .map_err_to_internal()?;
 
+    let pages = (count as f32 / PAGE_SIZE as f32).ceil() as u32;
     render_html(
         ListImagesTemplate {
             images: &images[..],
             search_form: &search_form,
+            current_page: page,
+            pages,
         },
         HttpResponse::Ok(),
     )

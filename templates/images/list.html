@@ -13,9 +13,21 @@
 
 <div id="images-">
     <h2>Images:</h2>
-    <div class="list-group">
+    <div class="row">
         {% for image in images %}
-        <a href="/images/{{ image.id }}" class="list-group-item list-group-item-action">{{ image.id }} - {{ image.created_at }}</a>
+        <div class="col-lg-3 col-md-4 col-sm-6 col-xs-12 d-flex mb-1">
+            <a href="/images/{{ image.id }}" class="d-flex justify-content-center w-100">
+            {% match image.file_path %}
+                {% when Some with (file_path) %}
+                    <img
+                    src="/{{ file_path  }}"
+                    style="object-fit: contain; max-width: 100%;"
+                    />
+                {% when None %}
+                    <div style="display: block; min-height: 100px; width: 100%; background-color: lightgray;"></div>
+            {% endmatch %}
+            </a>
+        </div>
         {% endfor %}
     </div>
 </div>

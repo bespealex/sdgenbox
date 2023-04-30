@@ -3,7 +3,7 @@
 {% block content %}
 {% match image.file_path %}
     {% when Some with (image_url) %}
-        <img class="img-thumbnail" style="object-fit: scale-down; max-height: 70vh;" src="/{{ image_url }}" alt="">
+        <img class="img-thumbnail" style="object-fit: scale-down; max-height: 70vh;" src="/media/{{ image_url }}" alt="">
     {% when None %}
         <p>No image found</p>
 {% endmatch %}

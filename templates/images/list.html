@@ -22,7 +22,7 @@
             {% match image.file_path %}
                 {% when Some with (file_path) %}
                     <img
-                    src="/{{ file_path  }}"
+                    src="/media/{{ file_path  }}"
                     style="object-fit: contain; max-width: 100%;"
                     />
                 {% when None %}

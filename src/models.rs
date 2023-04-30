@@ -43,8 +43,8 @@ pub async fn create_image(
     image_file: &mut File,
     media_root: &Path,
 ) -> anyhow::Result<()> {
-    let file_path: PathBuf = generate_image_path(media_root);
-    let mut file = tokio::fs::File::create(&file_path).await?;
+    let file_path: PathBuf = generate_image_path();
+    let mut file = tokio::fs::File::create(&media_root.join(&file_path)).await?;
     tokio::io::copy(image_file, &mut file).await?;
     let file_path = file_path.to_string_lossy();
 
@@ -72,9 +72,9 @@ pub async fn create_image(
     Ok(())
 }
 
-pub fn generate_image_path(media_root: &Path) -> PathBuf {
+pub fn generate_image_path() -> PathBuf {
     let random_file_id = format!("{:16x}", thread_rng().gen::<u64>());
-    let mut image_path = media_root.join("images").join(random_file_id.as_str());
+    let mut image_path = Path::new("images").join(random_file_id.as_str());
     image_path.set_extension("png");
     image_path
 }

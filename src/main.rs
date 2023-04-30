@@ -14,7 +14,12 @@ mod utils;
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     // Load config
-    dotenvy::dotenv()?;
+    let dotenvy_result = dotenvy::dotenv();
+    match dotenvy_result {
+        Err(error) if error.not_found() => {}
+        Ok(_) => {}
+        Err(error) => return Err(error)?,
+    };
     let config: Config = envy::from_env()?;
 
     // Configure logging
@@ -27,6 +32,7 @@ async fn main() -> anyhow::Result<()> {
     let pool = sqlx::sqlite::SqlitePoolOptions::new()
         .connect(&config.database_url)
         .await?;
+    sqlx::migrate!("./migrations").run(&pool).await?;
 
     let app_config = config.clone();
     let app = HttpServer::new(move || {
@@ -36,7 +42,7 @@ async fn main() -> anyhow::Result<()> {
                 "/media",
                 config.media_root.to_str().unwrap(),
             ))
-            .service(actix_files::Files::new("/static", "static"))
+            .service(actix_files::Files::new("/static", "./static"))
             // Dynamic handlers
             .service(resource("/").route(get().to(handlers::index::index)))
             .service(resource("/images").route(get().to(handlers::images::list_images)))

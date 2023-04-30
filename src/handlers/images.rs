@@ -11,6 +11,7 @@ use serde::Deserialize;
 use sqlx::{Connection, Pool, Sqlite, Transaction};
 
 use crate::{
+    config::Config,
     models::{create_image, fetch_image_by_id, fetch_images, fetch_images_count, Image, Limits},
     utils::{errors::MapErrToInternal, image::extract_metadata_from_image, render::render_html},
 };
@@ -46,12 +47,13 @@ enum ParseAndSaveImageError {
 async fn parse_and_save_image(
     transaction: &mut Transaction<'_, Sqlite>,
     original_file: TempFile,
+    media_root: &Path,
 ) -> Result<Image, ParseAndSaveImageError> {
     let mut image = extract_metadata_from_image(original_file.file.path().to_str().unwrap())?
         .ok_or(ParseAndSaveImageError::ParseError)?;
 
     let mut image_file = tokio::fs::File::from_std(original_file.file.into_file());
-    create_image(transaction, &mut image, &mut image_file, Path::new("media")).await?;
+    create_image(transaction, &mut image, &mut image_file, media_root).await?;
 
     Ok(image)
 }
@@ -63,6 +65,7 @@ pub struct UploadForm {
 }
 
 pub async fn upload_post(
+    config: Data<Config>,
     MultipartForm(form): MultipartForm<UploadForm>,
     pool: Data<Pool<Sqlite>>,
 ) -> actix_web::Result<impl Responder> {
@@ -71,7 +74,8 @@ pub async fn upload_post(
 
     let mut images: Vec<Image> = Vec::new();
     for original_file in form.files {
-        let image = match parse_and_save_image(&mut transaction, original_file).await {
+        let image = parse_and_save_image(&mut transaction, original_file, &config.media_root).await;
+        let image = match image {
             Ok(image) => image,
             Err(ParseAndSaveImageError::ParseError) => {
                 return Ok(Redirect::to(

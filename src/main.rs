@@ -15,23 +15,27 @@ mod utils;
 async fn main() -> anyhow::Result<()> {
     // Load config
     dotenvy::dotenv()?;
-    let config = envy::from_env::<Config>()?;
+    let config: Config = envy::from_env()?;
 
     // Configure logging
     env_logger::init();
 
     // Create missing folders
-    create_dir_all("media/images").await?;
+    create_dir_all(config.media_root.join("images")).await?;
 
     // Establish sqlite connection
     let pool = sqlx::sqlite::SqlitePoolOptions::new()
         .connect(&config.database_url)
         .await?;
 
+    let app_config = config.clone();
     let app = HttpServer::new(move || {
         App::new()
             // Files serving
-            .service(actix_files::Files::new("/media", "media"))
+            .service(actix_files::Files::new(
+                "/media",
+                config.media_root.to_str().unwrap(),
+            ))
             .service(actix_files::Files::new("/static", "static"))
             // Dynamic handlers
             .service(resource("/").route(get().to(handlers::index::index)))
@@ -44,9 +48,10 @@ async fn main() -> anyhow::Result<()> {
             .service(resource("/images/{id}").route(get().to(handlers::images::get_image)))
             // Services
             .app_data(Data::new(pool.clone()))
+            .app_data(Data::new(app_config.clone()))
     })
     .bind((config.host, config.port))?;
-    log::info!("Running server on http://{}:{}/", config.host, config.port);
+    log::debug!("Running server on http://{}:{}/", config.host, config.port);
     app.run().await?;
     Ok(())
 }

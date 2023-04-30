@@ -32,7 +32,7 @@ pub fn extract_metadata_from_image(path: &str) -> anyhow::Result<Option<Image>> 
 
 lazy_static! {
     static ref PARAMETERS_REGEX: Regex = Regex::new(
-        r#"^(?P<prompt>[\S\s]+)\nNegative prompt: (?P<negative_prompt>[\S\s]+)\nSteps: (?P<steps>\d+), Sampler: (?P<sampler>.+), CFG scale: (?P<cfg_scale>\d+), Seed: (?P<seed>-?\d+), Size: (?P<size>\d+x\d+), Model hash: (?P<model_hash>.+), Model: (?P<model>.+?), (?:Conditional mask weight: (?P<conditional_mask_weight>.+), )?Clip skip: (?P<clip_skip>\d+)"#,
+        r#"^(?P<prompt>[\S\s]+)\nNegative prompt: (?P<negative_prompt>[\S\s]+)\nSteps: (?P<steps>\d+), Sampler: (?P<sampler>[^,]+), CFG scale: (?P<cfg_scale>\d+), Seed: (?P<seed>-?\d+), Size: (?P<size>\d+x\d+), Model hash: (?P<model_hash>[^,]+), Model: (?P<model>[^,]+)(?:, Conditional mask weight: (?P<conditional_mask_weight>[^,]+))?(?:, Clip skip: (?P<clip_skip>\d+))?"#,
     ).unwrap();
 }
 
@@ -73,11 +73,7 @@ fn parse_raw(raw: &str) -> Option<Image> {
         model_hash: captures.name("model_hash").unwrap().as_str().to_owned(),
         model: captures.name("model").unwrap().as_str().to_owned(),
         clip_skip: captures
-            .name("clip_skip")
-            .unwrap()
-            .as_str()
-            .parse::<i64>()
-            .unwrap(),
+            .name("clip_skip").map(|clip_skip| clip_skip.as_str().parse::<i64>().unwrap()),
         file_path: None,
         created_at: chrono::NaiveDateTime::default(),
     })

@@ -32,7 +32,7 @@ pub struct Image {
     pub height: i64,
     pub model_hash: String,
     pub model: String,
-    pub clip_skip: i64,
+    pub clip_skip: Option<i64>,
     pub file_path: Option<String>,
     pub created_at: chrono::NaiveDateTime,
 }

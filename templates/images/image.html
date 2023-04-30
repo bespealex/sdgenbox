@@ -48,7 +48,14 @@
     </tr>
     <tr>
         <td>Clip skip</td>
-        <td>{{ image.clip_skip }}</td>
+        <td>
+            {% match image.clip_skip %}
+                {% when Some with (clip_skip) %}
+                    {{ clip_skip }}
+                {% when None %}
+                    -
+            {% endmatch %}
+        </td>
     </tr>
     <tr>
         <td>Created at</td>

@@ -8,6 +8,8 @@ sdgenbox - simple web server for storing and navigating through generated images
 # Clone repository
 git clone https://github.com/discrimy/sdgenbox.git
 cd sdgenbox
+# Setup default .env
+cp example.env .env
 # Install sqlx-cli for migrations management
 cargo install sqlx-cli --no-default-features -F sqlite -F rustls
 # Create sqlite database and apply migrations (needed to check SQL queries during compilation)
@@ -28,6 +30,11 @@ pre-commit install
 task test
 # Run and autorebuild server
 task watch-run
+```
+
+## How to build docker image
+```bash
+docker build . -t discrimy/sdgenbox
 ```
 
 ## Why I built it

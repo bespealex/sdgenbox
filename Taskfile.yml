@@ -3,6 +3,12 @@
 version: "3"
 
 dotenv: [.env]
+vars:
+  VERSION:
+    sh: cargo metadata --no-deps --format-version=1 | jq '.packages[0].version' -r
+  IMAGE_TAG:
+    sh: echo discrimy/sdgenbox:v{{ .VERSION }}
+  
 
 tasks:
   test:
@@ -23,3 +29,8 @@ tasks:
     cmds:
       - sqlite3 ${DATABASE_URL/sqlite:\/\//}
     interactive: true
+  docker:build:
+    cmds: ["docker build . -t {{ .IMAGE_TAG }}"]
+  docker:publish:
+    deps: ["docker:build"]
+    cmds: ["docker push {{ .IMAGE_TAG }}"]

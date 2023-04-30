@@ -12,5 +12,6 @@ CREATE TABLE IF NOT EXISTS image (
     model_hash      TEXT    NOT NULL,
     model           TEXT    NOT NULL,
     clip_skip       INTEGER NOT NULL,
-    file_path       TEXT    NULL
+    file_path       TEXT    NULL,
+    created_at      INTEGER NOT NULL DEFAULT(unixepoch())
 );

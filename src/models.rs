@@ -172,7 +172,7 @@ pub async fn fetch_images(
 
 #[cfg(test)]
 mod test {
-    use std::{fs::create_dir, path::Path};
+    use std::fs::create_dir;
 
     use chrono::NaiveDate;
     use sqlx::{migrate, pool::PoolConnection, Acquire, Sqlite};
@@ -236,7 +236,7 @@ mod test {
 
         assert_ne!(image.id, 0);
         let image_file = image.file_path.unwrap();
-        assert!(Path::new(&image_file).exists());
+        assert!(media_root.path().join(image_file).exists());
     }
 
     #[actix_web::test]

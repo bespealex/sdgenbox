@@ -73,7 +73,8 @@ fn parse_raw(raw: &str) -> Option<Image> {
         model_hash: captures.name("model_hash").unwrap().as_str().to_owned(),
         model: captures.name("model").unwrap().as_str().to_owned(),
         clip_skip: captures
-            .name("clip_skip").map(|clip_skip| clip_skip.as_str().parse::<i64>().unwrap()),
+            .name("clip_skip")
+            .map(|clip_skip| clip_skip.as_str().parse::<i64>().unwrap()),
         file_path: None,
         created_at: chrono::NaiveDateTime::default(),
     })

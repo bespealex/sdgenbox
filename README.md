@@ -15,6 +15,8 @@ cargo install sqlx-cli --no-default-features -F sqlite -F rustls
 # Create sqlite database and apply migrations (needed to check SQL queries during compilation)
 touch db.sqlite3 && sqlx migrate run
 # Build and run project using rust toolchain
+# Install exiftool to extract metadata from images
+nix-env -Ai nixpkgs.exiftool  # or your prefered package manager
 cargo run
 ```
 

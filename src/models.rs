@@ -193,7 +193,7 @@ mod test {
             height: 600,
             model_hash: "modelhash".to_string(),
             model: "model".to_string(),
-            clip_skip: 1,
+            clip_skip: Some(1),
             file_path: None,
             created_at: NaiveDate::from_ymd_opt(2023, 4, 24)
                 .unwrap()

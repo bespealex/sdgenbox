@@ -23,15 +23,15 @@ cargo run
 ## How to create development environment
 ```bash
 # Install `task` task runner and pre-commit
-nix-env -Ai nixpkgs.pre-commit nixpkgs.go-task  # or use other package manager
+nix-env -Ai nixpkgs.pre-commit  # or use other package manager
 # Install cargo-watch to rebuild server on files changes
 cargo install cargo-watch
 # Install pre-commit as git hook
 pre-commit install
 # Run tests to validate the installation is alright
-task test
+./Taskfile.sh test
 # Run and autorebuild server
-task watch-run
+./Taskfile.sh watch-run
 ```
 
 ## How to build docker image

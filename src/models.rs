@@ -83,9 +83,15 @@ pub async fn fetch_image_by_id(
     executor: impl Executor<'_, Database = Sqlite>,
     image_id: i64,
 ) -> sqlx::Result<Option<Image>> {
-    sqlx::query_as!(Image, r#"SELECT id, prompt, negative_prompt, steps, sampler, cfg_scale, seed, width, height, model_hash, model, clip_skip, file_path, created_at as "created_at: _" FROM image WHERE id = ?"#, image_id)
-        .fetch_optional(executor)
-        .await
+    sqlx::query_as!(
+        Image,
+        r#"SELECT id, prompt, negative_prompt, steps, sampler, cfg_scale, seed,
+        width, height, model_hash, model, clip_skip, file_path, created_at as "created_at: _"
+        FROM image WHERE id = ?"#,
+        image_id,
+    )
+    .fetch_optional(executor)
+    .await
 }
 
 pub struct Limits {
@@ -148,7 +154,11 @@ pub async fn fetch_images(
         other => other,
     };
 
-    let mut images_query = sqlx::QueryBuilder::new("SELECT id, prompt, negative_prompt, steps, sampler, cfg_scale, seed, width, height, model_hash, model, clip_skip, file_path, created_at FROM image");
+    let mut images_query = sqlx::QueryBuilder::new(
+        "SELECT id, prompt, negative_prompt, steps, sampler, cfg_scale, seed, width,
+        height, model_hash, model, clip_skip, file_path, created_at
+        FROM image",
+    );
     if let Some(search) = search {
         add_filter_to_query(&mut images_query, search);
     }

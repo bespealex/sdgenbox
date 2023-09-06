@@ -36,7 +36,7 @@ pre-commit install
 
 ## How to build docker image
 ```bash
-docker build . -t discrimy/sdgenbox
+./Taskfile.sh build
 ```
 
 ## Why I built it

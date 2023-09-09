@@ -13,7 +13,9 @@ use sqlx::{Connection, Pool, Sqlite, Transaction};
 use crate::{
     config::Config,
     models::{create_image, fetch_image_by_id, fetch_images, fetch_images_count, Image, Limits},
-    utils::{errors::MapErrToInternal, image::extract_metadata_from_image, render::render_html},
+    utils::{
+        errors::MapErrToInternal, image::extract_metadata_from_image, pager, render::render_html,
+    },
 };
 
 #[derive(Template)]
@@ -52,8 +54,13 @@ async fn parse_and_save_image(
     let mut image = extract_metadata_from_image(original_file.file.path().to_str().unwrap())?
         .ok_or(ParseAndSaveImageError::ParseError)?;
 
-    let mut image_file = tokio::fs::File::from_std(original_file.file.into_file());
-    create_image(transaction, &mut image, &mut image_file, media_root).await?;
+    create_image(
+        transaction,
+        &mut image,
+        original_file.file.path(),
+        media_root,
+    )
+    .await?;
 
     Ok(image)
 }
@@ -72,32 +79,25 @@ pub async fn upload_post(
     let mut connection = pool.acquire().await.map_err_to_internal()?;
     let mut transaction = connection.begin().await.map_err_to_internal()?;
 
-    let mut images: Vec<Image> = Vec::new();
+    let mut results = Vec::new();
     for original_file in form.files {
-        let image = parse_and_save_image(&mut transaction, original_file, &config.media_root).await;
-        let image = match image {
-            Ok(image) => image,
-            Err(ParseAndSaveImageError::ParseError) => {
-                return Ok(Redirect::to(
-                    "/images/upload?error_message=Cannot parse metadata from provided file",
-                )
-                .see_other())
-            }
-            Err(ParseAndSaveImageError::InternalError(error)) => {
-                Err(error).map_err_to_internal()?
-            }
-        };
-        images.push(image);
+        let result =
+            parse_and_save_image(&mut transaction, original_file, &config.media_root).await;
+        results.push(result);
     }
 
     transaction.commit().await.map_err_to_internal()?;
 
-    match &images[..] {
+    match &results[..] {
         [] => {
             Ok(Redirect::to("/images/upload?error_message=Provide at least one file").see_other())
         }
-        [image] => Ok(Redirect::to(format!("/images/{}", image.id)).see_other()),
-        _ => Ok(Redirect::to("/images").see_other()),
+        [Ok(image)] => Ok(Redirect::to(format!("/images/{}", image.id)).see_other()),
+        _ if results.iter().all(|r| r.is_ok()) => Ok(Redirect::to("/images").see_other()),
+        _ => Ok(Redirect::to(
+            "/images/upload?error_message=There are error while saving at least one image",
+        )
+        .see_other()),
     }
 }
 
@@ -134,8 +134,8 @@ pub async fn get_image(
 pub struct ListImagesTemplate<'a> {
     images: &'a [Image],
     search_form: &'a SearchForm,
-    current_page: u32,
-    pages: u32,
+    current_page: &'a u32,
+    pager: Vec<Option<u32>>,
 }
 
 #[derive(Deserialize)]
@@ -153,12 +153,15 @@ const PAGE_SIZE: u32 = 18;
 pub async fn list_images(
     pool: web::Data<Pool<Sqlite>>,
     search_form: web::Query<SearchForm>,
-    page: web::Query<PageQuery>,
+    page_query: web::Query<PageQuery>,
 ) -> actix_web::Result<impl Responder> {
     let mut connection = pool.acquire().await.map_err_to_internal()?;
     let search_form = search_form.into_inner();
     let search = &search_form.search.as_deref();
-    let page = page.into_inner().page.unwrap_or(0);
+    let page = match page_query.page {
+        Some(n) if n >= 1 => n,
+        _ => 1,
+    };
 
     let limits = Limits::from_page(page, PAGE_SIZE);
     let images = fetch_images(&mut connection, *search, &limits)
@@ -168,13 +171,14 @@ pub async fn list_images(
         .await
         .map_err_to_internal()?;
 
-    let pages = (count as f32 / PAGE_SIZE as f32).ceil() as u32;
+    let pages = (count as f32 / PAGE_SIZE as f32).ceil() as usize;
+    let pager = pager::pager(pages as u32, page, 2, 2);
     render_html(
         ListImagesTemplate {
             images: &images[..],
             search_form: &search_form,
-            current_page: page,
-            pages,
+            current_page: &page,
+            pager,
         },
         HttpResponse::Ok(),
     )

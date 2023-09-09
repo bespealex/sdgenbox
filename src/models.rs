@@ -2,7 +2,6 @@ use std::path::{Path, PathBuf};
 
 use rand::{thread_rng, Rng};
 use sqlx::{Executor, QueryBuilder, Row, Sqlite, Transaction};
-use tokio::fs::File;
 
 /// Parameters what were used to generate image
 ///
@@ -40,14 +39,15 @@ pub struct Image {
 pub async fn create_image(
     transaction: &mut Transaction<'_, Sqlite>,
     image: &mut Image,
-    image_file: &mut File,
+    image_file: &Path,
     media_root: &Path,
 ) -> anyhow::Result<()> {
     let file_path: PathBuf = generate_image_path();
-    let mut file = tokio::fs::File::create(&media_root.join(&file_path)).await?;
-    tokio::io::copy(image_file, &mut file).await?;
-    let file_path = file_path.to_string_lossy();
 
+    let destination_path = media_root.join(&file_path);
+    tokio::fs::copy(image_file, destination_path).await?;
+
+    let file_path = file_path.to_string_lossy();
     let id = sqlx::query_scalar!(
         r#"INSERT INTO image
          (prompt, negative_prompt, steps, sampler, cfg_scale, seed, width, height, model_hash, model, clip_skip, file_path)
@@ -102,7 +102,7 @@ pub struct Limits {
 impl Limits {
     pub fn from_page(page: u32, page_size: u32) -> Self {
         Limits {
-            offset: page_size * page,
+            offset: page_size * (page - 1),
             limit: page_size,
         }
     }
@@ -238,7 +238,7 @@ mod test {
         create_image(
             &mut transaction,
             &mut image,
-            &mut tokio::fs::File::from_std(original_file.into_file()),
+            original_file.path(),
             media_root.path(),
         )
         .await
@@ -260,7 +260,7 @@ mod test {
         create_image(
             &mut transaction,
             &mut image,
-            &mut tokio::fs::File::from_std(original_file.into_file()),
+            original_file.path(),
             media_root.path(),
         )
         .await

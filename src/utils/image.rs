@@ -1,9 +1,16 @@
 use std::process::Command;
 
 use crate::models::Image;
-use anyhow::{bail, Context};
+use anyhow::{anyhow, bail, Context};
 use lazy_static::lazy_static;
 use regex::Regex;
+use serde::Deserialize;
+
+#[derive(Debug, Deserialize)]
+struct ExiftoolOutput {
+    #[serde(alias = "Parameters")]
+    pub parameters: String,
+}
 
 /// Extract parameters which were used to generate image from image metadata
 pub fn extract_metadata_from_image(path: &str) -> anyhow::Result<Option<Image>> {
@@ -22,17 +29,17 @@ pub fn extract_metadata_from_image(path: &str) -> anyhow::Result<Option<Image>> 
 
     let raw_json =
         String::from_utf8(output.stdout).context("Failed to parse command stdout to UTF-8")?;
-    let json = json::parse(&raw_json[..]).context("Failed to parse stdout to json")?;
-    match json[0]["Parameters"].as_str() {
-        // File has to Parameters metadata
-        None => Ok(None),
-        Some(raw) => Ok(parse_raw(raw)),
-    }
+    let response = serde_json::from_str::<Vec<ExiftoolOutput>>(&raw_json)
+        .context("Failed to parse stdout to json")?;
+    let response = response
+        .get(0)
+        .ok_or(anyhow!("Failed to parse stdout to json"))?;
+    Ok(parse_raw(&response.parameters))
 }
 
 lazy_static! {
     static ref PARAMETERS_REGEX: Regex = Regex::new(
-        r#"^(?P<prompt>[\S\s]+)\nNegative prompt: (?P<negative_prompt>[\S\s]+)\nSteps: (?P<steps>\d+), Sampler: (?P<sampler>[^,]+), CFG scale: (?P<cfg_scale>\d+), Seed: (?P<seed>-?\d+), Size: (?P<size>\d+x\d+), Model hash: (?P<model_hash>[^,]+), Model: (?P<model>[^,]+)(?:, Conditional mask weight: (?P<conditional_mask_weight>[^,]+))?(?:, Clip skip: (?P<clip_skip>\d+))?"#,
+        r"^(?P<prompt>[\S\s]+)\nNegative prompt: (?P<negative_prompt>[\S\s]+)\nSteps: (?P<steps>\d+), Sampler: (?P<sampler>[^,]+), CFG scale: (?P<cfg_scale>[\d\.]+), Seed: (?P<seed>-?\d+), Size: (?P<size>\d+x\d+), Model hash: (?P<model_hash>[^,]+), Model: (?P<model>[^,]+)(?:, Conditional mask weight: (?P<conditional_mask_weight>[^,]+))?(?:, Clip skip: (?P<clip_skip>\d+))?",
     ).unwrap();
 }
 

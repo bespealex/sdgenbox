@@ -1,5 +1,5 @@
 use actix_web::{
-    web::{get, post, resource, Data},
+    web::{get, post, resource, Data, PayloadConfig},
     App, HttpServer,
 };
 use tokio::fs::create_dir_all;
@@ -37,6 +37,7 @@ async fn main() -> anyhow::Result<()> {
     let app_config = config.clone();
     let app = HttpServer::new(move || {
         App::new()
+            .app_data(PayloadConfig::new(1000000 * 250))
             // Files serving
             .service(actix_files::Files::new(
                 "/media",

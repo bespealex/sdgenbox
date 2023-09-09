@@ -34,13 +34,20 @@
     </div>
 
     <ul class="pagination d-flex flex-row justify-content-center">
-        {% for page in 0..pages %}
-            {% let page_link = format!("/images?search={}&page={}", search, page) %}
-            {% if page == current_page %}
-                <li class="page-item active"><a class="page-link" href="{{ page_link }}">{{ page }}</a></li>
-            {% else %}
-                <li class="page-item"><a class="page-link" href="{{ page_link }}">{{ page }}</a></li>
-            {% endif %}
+        {% for page in pager %}
+            {% match page %}
+                {% when Some with (page_num) %}
+                    {% let page_link = format!("/images?search={}&page={}", search, page_num) %}
+                    {% if page_num == current_page %}
+                        <li class="page-item active"><a class="page-link" href="{{ page_link }}">{{ page_num }}</a></li>
+                    {% else %}
+                        <li class="page-item"><a class="page-link" href="{{ page_link }}">{{ page_num }}</a></li>
+                    {% endif %}
+                {% when None %}
+                <li class="page-item disabled"><a class="page-link" href="#">...</a></li>
+            {% endmatch %}
+
+
         {% endfor %}
     </ul>
 </div>

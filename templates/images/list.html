@@ -14,41 +14,45 @@
 </form>
 
 <div id="images-">
-    <h2>Images:</h2>
-    <div class="row">
-        {% for image in images %}
-        <div class="col-lg-3 col-md-4 col-sm-6 col-xs-12 d-flex mb-1">
-            <a href="/images/{{ image.id }}" class="d-flex justify-content-center w-100">
-            {% match image.file_path %}
-                {% when Some with (file_path) %}
-                    <img
-                    src="/media/{{ file_path  }}"
-                    style="object-fit: contain; max-width: 100%;"
-                    />
-                {% when None %}
-                    <div style="display: block; min-height: 100px; width: 100%; background-color: lightgray;"></div>
-            {% endmatch %}
-            </a>
+    {% if images.is_empty() %}
+        <h2 class="text-center">Images not found</h2>
+    {% else %}
+        <h2 class="text-center">Images:</h2>
+        <div class="row justify-content-center">
+            {% for image in images %}
+            <div class="col-lg-3 col-md-4 col-sm-6 col-xs-12 d-flex mb-1">
+                <a href="/images/{{ image.id }}" class="d-flex justify-content-center w-100">
+                {% match image.file_path %}
+                    {% when Some with (file_path) %}
+                        <img
+                        src="/media/{{ file_path  }}"
+                        style="object-fit: contain; max-width: 100%;"
+                        />
+                    {% when None %}
+                        <div style="display: block; min-height: 100px; width: 100%; background-color: lightgray;"></div>
+                {% endmatch %}
+                </a>
+            </div>
+            {% endfor %}
         </div>
-        {% endfor %}
-    </div>
 
-    <ul class="pagination d-flex flex-row justify-content-center">
-        {% for page in pager %}
-            {% match page %}
-                {% when Some with (page_num) %}
-                    {% let page_link = format!("/images?search={}&page={}", search, page_num) %}
-                    {% if page_num == current_page %}
-                        <li class="page-item active"><a class="page-link" href="{{ page_link }}">{{ page_num }}</a></li>
-                    {% else %}
-                        <li class="page-item"><a class="page-link" href="{{ page_link }}">{{ page_num }}</a></li>
-                    {% endif %}
-                {% when None %}
-                <li class="page-item disabled"><a class="page-link" href="#">...</a></li>
-            {% endmatch %}
+        <ul class="pagination d-flex flex-row justify-content-center">
+            {% for page in pager %}
+                {% match page %}
+                    {% when Some with (page_num) %}
+                        {% let page_link = format!("/images?search={}&page={}", search, page_num) %}
+                        {% if page_num == current_page %}
+                            <li class="page-item active"><a class="page-link" href="{{ page_link }}">{{ page_num }}</a></li>
+                        {% else %}
+                            <li class="page-item"><a class="page-link" href="{{ page_link }}">{{ page_num }}</a></li>
+                        {% endif %}
+                    {% when None %}
+                    <li class="page-item disabled"><a class="page-link" href="#">...</a></li>
+                {% endmatch %}
 
 
-        {% endfor %}
-    </ul>
+            {% endfor %}
+        </ul>
+    {% endif%}
 </div>
 {% endblock %}

@@ -121,6 +121,8 @@ fn add_filter_to_query(query: &mut QueryBuilder<Sqlite>, search: &str) {
         .push(" OR upper(model_hash) LIKE ")
         .push_bind(format!("%{}%", search.to_uppercase()))
         .push(" OR upper(model) LIKE ")
+        .push_bind(format!("%{}%", search.to_uppercase()))
+        .push(" OR upper(seed) LIKE ")
         .push_bind(format!("%{}%", search.to_uppercase()));
 }
 

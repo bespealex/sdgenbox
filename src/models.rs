@@ -1,7 +1,11 @@
-use std::path::{Path, PathBuf};
+use std::{
+    io::ErrorKind,
+    path::{Path, PathBuf},
+};
 
 use rand::{thread_rng, Rng};
 use sqlx::{Executor, QueryBuilder, Row, Sqlite, Transaction};
+use tokio::fs::remove_file;
 
 /// Parameters what were used to generate image
 ///
@@ -70,6 +74,10 @@ pub async fn create_image(
     image.file_path = Some(file_path.to_string());
 
     Ok(())
+}
+
+pub fn get_image_file_path(media_root: &Path, file_path: &str) -> PathBuf {
+    media_root.join("images").join(file_path)
 }
 
 pub fn generate_image_path() -> PathBuf {
@@ -180,6 +188,54 @@ pub async fn fetch_images(
         .collect();
 
     Ok(images)
+}
+
+pub async fn remove_image(
+    transaction: &mut Transaction<'_, Sqlite>,
+    image_id: i64,
+) -> sqlx::Result<()> {
+    sqlx::query!("DELETE FROM image WHERE id = ?", image_id)
+        .execute(&mut *transaction)
+        .await?;
+    sqlx::Result::Ok(())
+}
+
+pub async fn dedup_images(
+    transaction: &mut Transaction<'_, Sqlite>,
+    media_root: &Path,
+) -> sqlx::Result<usize> {
+    let duplicates_seeds =
+        sqlx::query_scalar!("SELECT DISTINCT seed FROM image GROUP BY prompt, negative_prompt, steps, sampler, cfg_scale, seed, width, height, model_hash, model, clip_skip HAVING count(*) > 1")
+            .fetch_all(&mut *transaction)
+            .await?;
+
+    let mut deduplicated = 0;
+    for seed in duplicates_seeds {
+        let ids = sqlx::query_scalar!(
+            "SELECT id FROM image WHERE seed = ? ORDER BY created_at DESC",
+            seed
+        )
+        .fetch_all(&mut *transaction)
+        .await?;
+        for id in &ids[1..] {
+            let id = id.unwrap();
+            let image = fetch_image_by_id(&mut *transaction, id).await?;
+            if let Some(image) = image {
+                if let Some(file_path) = image.file_path {
+                    let image_path = get_image_file_path(media_root, &file_path);
+                    match remove_file(image_path).await {
+                        Ok(_) => Ok(()),
+                        Err(e) if e.kind() == ErrorKind::NotFound => Ok(()),
+                        Err(e) => Err(e),
+                    }?;
+                }
+                remove_image(&mut *transaction, image.id).await?;
+                deduplicated += 1;
+            }
+        }
+    }
+
+    sqlx::Result::Ok(deduplicated)
 }
 
 #[cfg(test)]

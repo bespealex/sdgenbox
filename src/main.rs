@@ -46,6 +46,7 @@ async fn main() -> anyhow::Result<()> {
             .service(actix_files::Files::new("/static", "./static"))
             // Dynamic handlers
             .service(resource("/").route(get().to(handlers::index::index)))
+            .service(resource("/dedup").route(post().to(handlers::index::deduplicate_images)))
             .service(resource("/images").route(get().to(handlers::images::list_images)))
             .service(
                 resource("/images/upload")

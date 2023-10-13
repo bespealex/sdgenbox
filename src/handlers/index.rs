@@ -1,7 +1,15 @@
 use actix_web::{
-    body::BoxBody, http::header::ContentType, HttpResponse, HttpResponseBuilder, Responder,
+    body::BoxBody, http::header::ContentType, web::Data, HttpResponse, HttpResponseBuilder,
+    Responder,
 };
 use askama::Template;
+use sqlx::{Acquire, Pool, Sqlite};
+
+use crate::{
+    config::Config,
+    models::dedup_images,
+    utils::{errors::MapErrToInternal, render::render_html},
+};
 
 pub struct TemplateResponse<T: Template> {
     template: T,
@@ -33,6 +41,28 @@ pub struct IndexTemplate;
 
 pub async fn index() -> actix_web::Result<TemplateResponse<IndexTemplate>> {
     Ok(TemplateResponse::new(IndexTemplate, HttpResponse::Ok()))
+}
+
+#[derive(Template)]
+#[template(path = "deduplication_result.html")]
+pub struct DeduplicationResultTemplate {
+    deduplicated: usize,
+}
+
+pub async fn deduplicate_images(
+    pool: Data<Pool<Sqlite>>,
+    config: Data<Config>,
+) -> actix_web::Result<HttpResponse> {
+    let mut connection = pool.acquire().await.map_err_to_internal()?;
+    let mut transaction = connection.begin().await.map_err_to_internal()?;
+    let deduplicated = dedup_images(&mut transaction, &config.media_root)
+        .await
+        .map_err_to_internal()?;
+    transaction.commit().await.map_err_to_internal()?;
+    render_html(
+        DeduplicationResultTemplate { deduplicated },
+        HttpResponse::Ok(),
+    )
 }
 
 #[cfg(test)]
